@@ -10,24 +10,27 @@ CHAT_ID = "278863950"
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    # ACEITA TUDO
-    raw_data = request.data.decode('utf-8')
+    # SEMPRE aceita (Watchlist + Individual)
+    raw = request.data.decode('utf-8', errors='ignore')
     
     # Monta mensagem
-    msg = raw_data or "🔔 Watchlist Alert"
+    if 'ticker' in raw:
+        msg = f"🚨 Watchlist: {raw}"
+    else:
+        msg = raw or "🔔 Alert"
     
     # TELEGRAM
-    requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
-                params={'chat_id': CHAT_ID, 'text': msg})
+    requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
+                 data={'chat_id': CHAT_ID, 'text': msg})
     
     # DISCORD
     requests.post(DISCORD_WEBHOOK, json={'content': msg})
     
-    return 'OK', 200  # SEMPRE 200
+    return '', 200, {'Content-Type': 'text/plain'}  # TradingView aceita
 
 @app.route('/', methods=['GET'])
 def home():
-    return "✅ Watchlist 100% OK"
+    return "Watchlist OK"
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
