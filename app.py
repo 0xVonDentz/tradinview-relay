@@ -1,7 +1,6 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request
 import requests
 import os
-import json
 
 app = Flask(__name__)
 
@@ -11,44 +10,24 @@ CHAT_ID = "278863950"
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    try:
-        # Aceita JSON ou texto puro
-        if request.is_json:
-            data = request.get_json()
-        else:
-            data = {'message': request.data.decode('utf-8')}
-        
-        # Extrai mensagem (funciona com qualquer payload)
-        message = (data.get('message') or 
-                  data.get('text', '') or 
-                  data.get('description', '') or 
-                  str(data) or 
-                  '🔔 Alerta Watchlist')
-        
-        # TELEGRAM
-        requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
-                    params={'chat_id': CHAT_ID, 'text': message})
-        
-        # DISCORD (embed simples)
-        embed = {
-            "embeds": [{
-                "title": "🚨 TradingView Alert",
-                "description": message,
-                "color": 5763719
-            }]
-        }
-        requests.post(DISCORD_WEBHOOK, json=embed)
-        
-        return jsonify({"status": "OK", "type": "watchlist_ok"}), 200
-        
-    except Exception as e:
-        # Log erro mas continua funcionando
-        print(f"Erro: {e}")
-        return jsonify({"status": "OK"}), 200  # TradingView aceita
+    # ACEITA TUDO
+    raw_data = request.data.decode('utf-8')
+    
+    # Monta mensagem
+    msg = raw_data or "🔔 Watchlist Alert"
+    
+    # TELEGRAM
+    requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
+                params={'chat_id': CHAT_ID, 'text': msg})
+    
+    # DISCORD
+    requests.post(DISCORD_WEBHOOK, json={'content': msg})
+    
+    return 'OK', 200  # SEMPRE 200
 
 @app.route('/', methods=['GET'])
 def home():
-    return "✅ Watchlist + Individual LIVE!"
+    return "✅ Watchlist 100% OK"
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
