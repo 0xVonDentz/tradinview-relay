@@ -14,31 +14,33 @@ def webhook():
         data = request.get_json()
         message = data.get('message', '🔔 Alerta TradingView')
         
-        # TELEGRAM (já funcionando ✅)
+        # TELEGRAM (✅ funcionando)
         tg_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         requests.get(tg_url, params={'chat_id': CHAT_ID, 'text': message})
         
-        # DISCORD (corrigido!)
-        discord_data = {
-            "content": message,
-            "username": "TradingView Bot"
-        }
-        headers = {'Content-Type': 'application/json'}
-        response = requests.post(DISCORD_WEBHOOK, json=discord_data, headers=headers)
+        # DISCORD (corrigido para TradingView entender)
+        discord_payload = {"content": message}
+        discord_response = requests.post(
+            DISCORD_WEBHOOK, 
+            json=discord_payload,
+            headers={'Content-Type': 'application/json'},
+            timeout=10
+        )
         
+        # TradingView espera 200 OK sempre
         return jsonify({
-            "status": "OK", 
-            "telegram": "OK", 
-            "discord": response.status_code,
+            "status": "success",
+            "telegram": "sent",
+            "discord": discord_response.status_code,
             "message": message
-        }), 200
+        }), 200  # SEMPRE 200!
         
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 200  # Até erro retorna 200
 
 @app.route('/', methods=['GET'])
 def home():
-    return "✅ TradingView Relay LIVE! Telegram+Discord"
+    return jsonify({"status": "TradingView Relay LIVE!", "telegram": "OK", "discord": "OK"})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
