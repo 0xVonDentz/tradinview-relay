@@ -4,34 +4,39 @@ import os
 
 app = Flask(__name__)
 
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1487189296447225856/BVCvn7XsK45F7bsrS6EcVg1DFWhsum3Uacay9kBC602Jeq-E47lZnWX6B8F2ojktpzfv"
-TELEGRAM_TOKEN = "8698506784:AAGU-p3F31S0oU8r1YIhAH6We0Wv9KlOuag"
-CHAT_ID = "278863950"
+DISCORD_WEBHOOK = "COLE_SUA_URL_DO_DISCORD_AQUI"
+TELEGRAM_TOKEN = "COLE_SEU_TOKEN_AQUI"
+CHAT_ID = "COLE_SEU_CHAT_ID_AQUI"
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    data = request.get_json() or {}
-    
-    # Se tem embeds, envia direto pro Discord
-    if data.get('embeds'):
-        requests.post(DISCORD_WEBHOOK, json=data)
-        
-        # Telegram recebe descrição
-        msg = data['embeds'][0].get('description', 'Alerta TradingView')
-        requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
-                    params={'chat_id': CHAT_ID, 'text': msg})
-    else:
-        # Fallback mensagem simples
-        msg = data.get('message', '🔔 Alerta')
-        requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
-                    params={'chat_id': CHAT_ID, 'text': msg})
-        requests.post(DISCORD_WEBHOOK, json={'content': msg})
-    
+    data = request.get_json(silent=True) or {}
+    ticker = data.get('ticker', 'N/A')
+    exchange = data.get('exchange', 'N/A')
+    interval = data.get('interval', 'N/A')
+    close = data.get('close', 'N/A')
+    time = data.get('time', 'N/A')
+    volume = data.get('volume', 'N/A')
+
+    message = f"🚨 {ticker} ({exchange})\n📊 {interval}\n💰 R$ {close}\n⏰ {time}\n📈 {volume}"
+
+    requests.get(
+        f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+        params={"chat_id": CHAT_ID, "text": message},
+        timeout=5
+    )
+
+    requests.post(
+        DISCORD_WEBHOOK,
+        json={"content": message},
+        timeout=5
+    )
+
     return jsonify({"status": "OK"}), 200
 
-@app.route('/', methods=['GET'])
+@app.route('/')
 def home():
-    return "✅ EMBED Discord + Telegram LIVE!"
+    return "LIVE"
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
