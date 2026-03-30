@@ -4,39 +4,36 @@ import os
 
 app = Flask(__name__)
 
-DISCORD_WEBHOOK = "COLE_SUA_URL_DO_DISCORD_AQUI"
-TELEGRAM_TOKEN = "COLE_SEU_TOKEN_AQUI"
-CHAT_ID = "COLE_SEU_CHAT_ID_AQUI"
+DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1487189296447225856/BVCvn7XsK45F7bsrS6EcVg1DFWhsum3Uacay9kBC602Jeq-E47lZnWX6B8F2ojktpzfv"
+TELEGRAM_TOKEN = "8698506784:AAGU-p3F31S0oU8r1YIhAH6We0Wv9KlOuag"
+CHAT_ID = "278863950"
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    data = request.get_json(silent=True) or {}
-    ticker = data.get('ticker', 'N/A')
+    data = request.get_json() or {}
+    raw_msg = data.get('message', '🔔 Alerta')
+    
+    # Extrai dados reais do TradingView
+    ticker = data.get('ticker', raw_msg.split()[0] if raw_msg.split() else 'N/A')
     exchange = data.get('exchange', 'N/A')
     interval = data.get('interval', 'N/A')
     close = data.get('close', 'N/A')
-    time = data.get('time', 'N/A')
-    volume = data.get('volume', 'N/A')
-
-    message = f"🚨 {ticker} ({exchange})\n📊 {interval}\n💰 R$ {close}\n⏰ {time}\n📈 {volume}"
-
-    requests.get(
-        f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-        params={"chat_id": CHAT_ID, "text": message},
-        timeout=5
-    )
-
-    requests.post(
-        DISCORD_WEBHOOK,
-        json={"content": message},
-        timeout=5
-    )
-
+    
+    # Mensagem BONITA
+    message = f"🚨 *{ticker}* ({exchange})\n📊 *{interval}*\n💰 *R$ {close}*\n⏰ *{data.get('time', 'live')[:16]}*"
+    
+    # Telegram
+    requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
+                params={'chat_id': CHAT_ID, 'text': message, 'parse_mode': 'Markdown'})
+    
+    # Discord
+    requests.post(DISCORD_WEBHOOK, json={'content': message})
+    
     return jsonify({"status": "OK"}), 200
 
-@app.route('/')
+@app.route('/', methods=['GET'])
 def home():
-    return "LIVE"
+    return "✅ LIVE!"
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
