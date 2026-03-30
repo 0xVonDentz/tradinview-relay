@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from datetime import datetime
+import re
 import requests
 import os
 
@@ -9,43 +10,42 @@ DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1487189296447225856/BVCvn7Xs
 TELEGRAM_TOKEN = "8698506784:AAGU-p3F31S0oU8r1YIhAH6We0Wv9KlOuag"
 CHAT_ID = "278863950"
 
-def format_time(tv_time):
-    """Converte {{time}} para dd/mm/yyyy HH:MM"""
+def format_brazilian_time(time_str):
+    """2026-03-30T13:52:00Z → 30/03/2026 13:52"""
     try:
-        # Remove 'T' e 'Z' → 2026-03-30T09:45:00Z → 2026-03-30 09:45:00
-        clean_time = tv_time.replace('T', ' ').replace('Z', '')
-        dt = datetime.fromisoformat(clean_time)
+        # Remove Z e converte
+        clean = time_str.replace('Z', '').replace('T', ' ')
+        dt = datetime.fromisoformat(clean)
         return dt.strftime("%d/%m/%Y %H:%M")
     except:
-        return tv_time  # fallback
+        return time_str
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
         data = request.get_json()
-        message = data.get('message', '🔔 Alerta TradingView')
+        raw_message = data.get('message', '🔔 Alerta')
         
-        # Pega {{time}} da mensagem e formata
-        if '{{time}}' in message:
-            tv_time = data.get('time', datetime.now().isoformat())
-            formatted_time = format_time(tv_time)
-            message = message.replace('{{time}}', formatted_time)
+        # Pega {{time}} dos dados do TradingView
+        tv_time = data.get('time', '') or data.get('timenow', '')
+        if tv_time:
+            formatted_time = format_brazilian_time(tv_time)
+            raw_message = raw_message.replace('{{time}}', formatted_time)
         
-        # TELEGRAM
-        tg_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        requests.get(tg_url, params={'chat_id': CHAT_ID, 'text': message, 'parse_mode': 'Markdown'})
+        # Envia mensagens formatadas
+        requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
+                    params={'chat_id': CHAT_ID, 'text': raw_message, 'parse_mode': 'Markdown'})
         
-        # DISCORD
-        requests.post(DISCORD_WEBHOOK, json={'content': message})
+        requests.post(DISCORD_WEBHOOK, json={'content': raw_message})
         
-        return jsonify({"status": "OK", "time_formatted": formatted_time}), 200
+        return jsonify({"status": "OK", "formatted_time": formatted_time}), 200
         
     except Exception as e:
         return jsonify({"error": str(e)}), 200
 
 @app.route('/', methods=['GET'])
 def home():
-    return jsonify({"status": "LIVE!", "format": "dd/mm/yyyy HH:MM"})
+    return "✅ Relay LIVE! Formato: dd/mm/yyyy HH:MM"
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
