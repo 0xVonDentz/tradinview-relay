@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import requests
 import os
+import json
 
 app = Flask(__name__)
 
@@ -11,24 +12,43 @@ CHAT_ID = "278863950"
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
-        data = request.get_json() or {}
-        message = data.get('message', '🔔 Alerta TradingView')
+        # Aceita JSON ou texto puro
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = {'message': request.data.decode('utf-8')}
         
-        # ENVIA TELEGRAM
-        tg_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        requests.get(tg_url, params={'chat_id': CHAT_ID, 'text': message})
+        # Extrai mensagem (funciona com qualquer payload)
+        message = (data.get('message') or 
+                  data.get('text', '') or 
+                  data.get('description', '') or 
+                  str(data) or 
+                  '🔔 Alerta Watchlist')
         
-        # ENVIA DISCORD
-        requests.post(DISCORD_WEBHOOK, json={'content': message})
+        # TELEGRAM
+        requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", 
+                    params={'chat_id': CHAT_ID, 'text': message})
         
-        return jsonify({"status": "OK"}), 200
+        # DISCORD (embed simples)
+        embed = {
+            "embeds": [{
+                "title": "🚨 TradingView Alert",
+                "description": message,
+                "color": 5763719
+            }]
+        }
+        requests.post(DISCORD_WEBHOOK, json=embed)
+        
+        return jsonify({"status": "OK", "type": "watchlist_ok"}), 200
         
     except Exception as e:
-        return jsonify({"error": str(e)}), 200
+        # Log erro mas continua funcionando
+        print(f"Erro: {e}")
+        return jsonify({"status": "OK"}), 200  # TradingView aceita
 
 @app.route('/', methods=['GET'])
 def home():
-    return "✅ TradingView Relay LIVE! Telegram+Discord OK"
+    return "✅ Watchlist + Individual LIVE!"
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
